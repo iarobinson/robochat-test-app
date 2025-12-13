@@ -1,0 +1,173 @@
+<!-- app/views/robochat/messages/index.html.erb -->
+<div class="chat-container">
+  
+  <!-- Header -->
+  <div class="chat-header">
+    <h1>Robochat</h1>
+  </div>
+
+  <!-- Messages Container -->
+  <div id="messages" class="messages-container">
+    
+    <!-- Welcome Message -->
+    <div class="message">
+      <div class="message-avatar assistant-avatar">R</div>
+      <div class="message-content-wrapper">
+        <div class="message-label">Robochat</div>
+        <div class="message-content">Hello! I'm Robochat, your AI assistant. How can I help you today?</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-container">
+    <form id="chatForm" class="input-form">
+      <div class="input-wrapper">
+        <textarea
+          id="messageInput"
+          rows="1"
+          placeholder="Type your message..."
+          autocomplete="off"
+        ></textarea>
+      </div>
+      <button type="submit" id="sendButton">Send</button>
+    </form>
+    
+    <div id="typingIndicator" class="typing-indicator">
+      <span>Thinking</span>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  const messagesContainer = document.getElementById('messages');
+  const messageInput = document.getElementById('messageInput');
+  const chatForm = document.getElementById('chatForm');
+  const sendButton = document.getElementById('sendButton');
+  const typingIndicator = document.getElementById('typingIndicator');
+
+  // Auto-resize textarea
+  messageInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+  });
+
+  // Handle Enter key (send on Enter, new line on Shift+Enter)
+  messageInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      chatForm.dispatchEvent(new Event('submit'));
+    }
+  });
+
+  // Create message element
+  function createMessage(content, isUser) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+    
+    const avatarClass = isUser ? 'user-avatar' : 'assistant-avatar';
+    const avatarText = isUser ? 'U' : 'R';
+    const label = isUser ? 'You' : 'Robochat';
+    
+    messageDiv.innerHTML = `
+      <div class="message-avatar ${avatarClass}">${avatarText}</div>
+      <div class="message-content-wrapper">
+        <div class="message-label">${label}</div>
+        <div class="message-content">${escapeHtml(content)}</div>
+      </div>
+    `;
+    
+    return messageDiv;
+  }
+
+  // Escape HTML to prevent XSS
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Scroll to bottom
+  function scrollToBottom() {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  // Show/hide typing indicator
+  function setTyping(isTyping) {
+    if (isTyping) {
+      typingIndicator.classList.add('active');
+    } else {
+      typingIndicator.classList.remove('active');
+    }
+  }
+
+  // Handle form submission
+  chatForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    // Disable input while processing
+    messageInput.disabled = true;
+    sendButton.disabled = true;
+
+    // Add user message to chat
+    const userMessage = createMessage(message, true);
+    messagesContainer.appendChild(userMessage);
+    
+    // Clear input and reset height
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+    
+    scrollToBottom();
+    setTyping(true);
+
+    try {
+      // Get CSRF token
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+      
+      // Call your Rails API endpoint
+      const response = await fetch('/robochat/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({ message: message })
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const data = await response.json();
+      
+      // Add assistant response
+      const assistantMessage = createMessage(data.response || 'I received your message!', false);
+      messagesContainer.appendChild(assistantMessage);
+      
+    } catch (error) {
+      console.error('Error:', error);
+      const errorMessage = createMessage('Sorry, there was an error processing your message. Please try again.', false);
+      messagesContainer.appendChild(errorMessage);
+    } finally {
+      // Re-enable input
+      setTyping(false);
+      messageInput.disabled = false;
+      sendButton.disabled = false;
+      messageInput.focus();
+      scrollToBottom();
+    }
+  });
+
+  // Focus input on load
+  messageInput.focus();
+})();
+</script>
