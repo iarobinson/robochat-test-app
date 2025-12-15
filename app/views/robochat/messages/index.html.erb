@@ -67,19 +67,22 @@
   });
 
   // Create message element
-  function createMessage(content, isUser) {
+  function createMessage(content, isUser, providerName) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message';
     
     const avatarClass = isUser ? 'user-avatar' : 'assistant-avatar';
     const avatarText = isUser ? 'U' : 'R';
-    const label = isUser ? 'You' : 'Robochat';
-    
+    const label = isUser ? 'You' : (providerName ? providerName.charAt(0).toUpperCase() + providerName.slice(1) : 'Robochat');
+
+    // Parse markdown for assistant messages, escape HTML for user messages
+    const messageContent = isUser ? escapeHtml(content) : marked.parse(content);
+
     messageDiv.innerHTML = `
       <div class="message-avatar ${avatarClass}">${avatarText}</div>
       <div class="message-content-wrapper">
-        <div class="message-label">${label}</div>
-        <div class="message-content">${escapeHtml(content)}</div>
+        <div class="message-label">${escapeHtml(label)}</div>
+        <div class="message-content">${messageContent}</div>
       </div>
     `;
     
