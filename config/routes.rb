@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  get 'pages/index'
   get "up" => "rails/health#show", as: :rails_health_check
 
   # Default mounting
@@ -8,5 +9,5 @@ Rails.application.routes.draw do
   get '/my-claude-assistant', to: 'robochat/messages#claude'
   get '/my-openai-helper', to: 'robochat/messages#openai'
   
-  root "robochat/messages#index"
+  root "pages#index"
 end
